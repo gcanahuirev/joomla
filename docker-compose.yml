@@ -1,0 +1,74 @@
+version: '3.2'
+
+networks:
+  joomlaweb:
+
+services:
+  # Website
+  joomla:
+    container_name: joomlaweb
+    image: 'joomla'
+    restart: unless-stopped
+    networks:
+      - joomlaweb
+    expose:
+      - '80'
+    volumes:
+      - '${PWD}/html:/var/www/html'
+    environment:
+      JOOMLA_DB_HOST: admin
+      JOOMLA_DB_PASSWORD: admin123
+      VIRTUAL_HOST: docker.tecnicas.com
+      LETSENCRYPT_HOST: docker.tecnicas.com
+
+  # Database Mysql
+  mysql:
+    container_name: joomladb
+    image: 'mysql:5.6'
+    restart: unless-stopped
+    networks:
+      - joomlaweb
+    expose:
+      - '3306'
+    volumes:
+      - '${PWD}/data:/var/lib/mysql'
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql123
+
+  # Web server Nginx-Proxy
+  nginx-proxy:
+    container_name: nginx-proxy
+    image: 'jwilder/nginx-proxy'
+    restart: unless-stopped
+    networks:
+      - joomlaweb
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - '/var/run/docker.sock:/tmp/docker.sock:ro'
+      - 'certs:/etc/nginx/certs'
+      - 'vhost.d:/etc/nginx/vhost.d'
+      - '${PWD}/html:/usr/share/nginx/html'
+
+  # Certs LetsEncrypt
+  nginx-proxy-letsencrypt:
+    container_name: nginx-proxy-letsencrypt
+    image: 'jrcs/letsencrypt-nginx-proxy-companion'
+    restart: unless-stopped
+    networks:
+      - joomlaweb
+    depends_on:
+      - nginx-proxy
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      - 'certs:/etc/nginx/certs'
+      - 'vhost.d:/etc/nginx/vhost.d'
+      - '${PWD}/html:/usr/share/nginx/html'
+    environment:
+      DEFAULT_EMAIL: momix78148@kakekbet.com
+      NGINX_PROXY_CONTAINER: nginx-proxy
+
+volumes:
+  certs: {}
+  vhost.d: {}
